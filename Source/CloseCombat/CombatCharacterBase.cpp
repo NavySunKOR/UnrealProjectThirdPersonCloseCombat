@@ -15,7 +15,7 @@ ACombatCharacterBase::ACombatCharacterBase()
 void ACombatCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 }
 
 // Called every frame
@@ -51,7 +51,17 @@ void ACombatCharacterBase::Tick(float DeltaTime)
 			horizontal = (horizontal > 0.f) ? 0.f : horizontal;
 		}
 	}
-	deltaTime = DeltaTime;
+	movingDeltaTime = DeltaTime;
+
+	if (isAttackPressed)
+	{
+		lastTimeAttackPressed += DeltaTime;
+		if (lastTimeAttackPressed > attackAnims[attackMod]->GetPlayLength())
+		{
+			isAttackPressed = false;
+		}
+	}
+
 }
 
 // Called to bind functionality to input
@@ -61,21 +71,48 @@ void ACombatCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 	PlayerInputComponent->BindAxis(TEXT("Vertical"), this, &ACombatCharacterBase::MoveVertical);
 	PlayerInputComponent->BindAxis(TEXT("Horizontal"), this, &ACombatCharacterBase::MoveHorizontal);
+	PlayerInputComponent->BindAction(TEXT("Attack"), EInputEvent::IE_Pressed, this, &ACombatCharacterBase::Attack);
+	PlayerInputComponent->BindAction(TEXT("Attack"), EInputEvent::IE_Repeat, this , &ACombatCharacterBase::Attack);
 
 }
 
 void ACombatCharacterBase::MoveVertical(float pInputValue)
 {
 	isVerticallyMoving = (pInputValue != 0) ? true : false;
-	vertical += pInputValue * deltaTime;
+	vertical += pInputValue * movingDeltaTime;
 	vertical = FMath::Clamp(vertical, -1.f, 1.f);
 }
 
 void ACombatCharacterBase::MoveHorizontal(float pInputValue)
 {
 	isHorizontallyMoving = (pInputValue != 0) ? true : false;
-	horizontal += pInputValue * deltaTime;
+	horizontal += pInputValue * movingDeltaTime;
 	horizontal = FMath::Clamp(horizontal, -1.f, 1.f);
+}
+
+void ACombatCharacterBase::Attack()
+{
+	//처음 누른 것이냐 아닌것이냐
+	//다음 공격 쿨타임이냐 아니냐
+
+
+	if (isAttackPressed && lastTimeAttackPressed > attackAnims[attackMod]->GetPlayLength() * 0.6f)
+	{
+		PlayAnimMontage(attackAnims[attackMod], 1.f);
+		lastTimeAttackPressed = 0.f;
+		attackMod++;
+		if (attackMod > 2)
+		{
+			attackMod = 0;
+		}
+	}
+	else if(!isAttackPressed)
+	{
+		isAttackPressed = true;
+		attackMod = 0;
+		lastTimeAttackPressed = 0.f;
+		PlayAnimMontage(attackAnims[attackMod], 1.f);
+	}
 }
 
 float ACombatCharacterBase::GetHorizontalMoving() const
@@ -88,3 +125,7 @@ float ACombatCharacterBase::GetVerticalMoving() const
 	return vertical;
 }
 
+bool ACombatCharacterBase::IsAttacking() const
+{
+	return isAttackPressed;
+}

@@ -22,6 +22,7 @@ protected:
 
 	void MoveVertical(float pInputValue);
 	void MoveHorizontal(float pInputValue);
+	void Attack();
 
 public:	
 	// Called every frame
@@ -32,15 +33,26 @@ public:
 	float GetHorizontalMoving() const;
 	UFUNCTION(BlueprintPure)
 	float GetVerticalMoving() const;
-
-
+	UFUNCTION(BlueprintPure)
+	bool IsAttacking() const;
 
 private:
 	UPROPERTY(EditAnywhere)
 	float horizontal;
 	UPROPERTY(EditAnywhere)
 	float vertical;
+
+	//¹«ºù
 	bool isVerticallyMoving = false;
 	bool isHorizontallyMoving = false;
-	float deltaTime;
+	float movingDeltaTime;
+
+	//°ø°Ý
+	int attackMod;
+	bool isAttackPressed;
+	float lastTimeAttackPressed=0.f;
+
+	UPROPERTY(EditAnywhere)
+	UAnimMontage* attackAnims[3];
+	
 };
