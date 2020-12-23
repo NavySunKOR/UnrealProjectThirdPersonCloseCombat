@@ -22,6 +22,12 @@ void ACombatCharacterBase::BeginPlay()
 void ACombatCharacterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (IsInCombat() || IsDead())
+	{
+		LockMovement();
+	}
+
 	if (!isVerticallyMoving)
 	{
 		if (vertical > 0.f)
@@ -64,6 +70,22 @@ void ACombatCharacterBase::Tick(float DeltaTime)
 
 }
 
+float ACombatCharacterBase::TakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+
+	UE_LOG(LogTemp, Warning, TEXT("Damage taken! amount : %f"), Damage);
+	Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
+	curHp -= Damage;
+
+	UE_LOG(LogTemp, Warning, TEXT("Curhp amount : %f"), curHp);
+	if (curHp <= 0.f)
+	{
+		Dead();
+	}
+
+	return Damage;
+}
+
 // Called to bind functionality to input
 void ACombatCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -72,47 +94,91 @@ void ACombatCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAxis(TEXT("Vertical"), this, &ACombatCharacterBase::MoveVertical);
 	PlayerInputComponent->BindAxis(TEXT("Horizontal"), this, &ACombatCharacterBase::MoveHorizontal);
 	PlayerInputComponent->BindAction(TEXT("Attack"), EInputEvent::IE_Pressed, this, &ACombatCharacterBase::Attack);
-	PlayerInputComponent->BindAction(TEXT("Attack"), EInputEvent::IE_Repeat, this , &ACombatCharacterBase::Attack);
+	PlayerInputComponent->BindAction(TEXT("LockOn"), EInputEvent::IE_Pressed, this, &ACombatCharacterBase::LockOn);
+	PlayerInputComponent->BindAction(TEXT("Block"), EInputEvent::IE_Pressed, this, &ACombatCharacterBase::BlockOn);
+	PlayerInputComponent->BindAction(TEXT("Block"), EInputEvent::IE_Released, this, &ACombatCharacterBase::BlockOff);
+	PlayerInputComponent->BindAction(TEXT("TEST_Action"), EInputEvent::IE_Pressed, this, &ACombatCharacterBase::TEST_Action);
 
 }
 
 void ACombatCharacterBase::MoveVertical(float pInputValue)
 {
-	isVerticallyMoving = (pInputValue != 0) ? true : false;
-	vertical += pInputValue * movingDeltaTime;
-	vertical = FMath::Clamp(vertical, -1.f, 1.f);
+	if (!IsInCombat() && !IsDead())
+	{
+		isVerticallyMoving = (pInputValue != 0) ? true : false;
+		vertical += pInputValue * movingDeltaTime;
+		vertical = FMath::Clamp(vertical, -1.f, 1.f);
+	}
 }
 
 void ACombatCharacterBase::MoveHorizontal(float pInputValue)
 {
-	isHorizontallyMoving = (pInputValue != 0) ? true : false;
-	horizontal += pInputValue * movingDeltaTime;
-	horizontal = FMath::Clamp(horizontal, -1.f, 1.f);
+	if (!IsInCombat() && !IsDead())
+	{
+		isHorizontallyMoving = (pInputValue != 0) ? true : false;
+		horizontal += pInputValue * movingDeltaTime;
+		horizontal = FMath::Clamp(horizontal, -1.f, 1.f);
+	}
 }
 
 void ACombatCharacterBase::Attack()
 {
-	//처음 누른 것이냐 아닌것이냐
-	//다음 공격 쿨타임이냐 아니냐
-
-
-	if (isAttackPressed && lastTimeAttackPressed > attackAnims[attackMod]->GetPlayLength() * 0.6f)
+	if (!IsDead())
 	{
-		PlayAnimMontage(attackAnims[attackMod], 1.f);
-		lastTimeAttackPressed = 0.f;
-		attackMod++;
-		if (attackMod > 2)
+		if (isAttackPressed && lastTimeAttackPressed > attackAnims[attackMod]->GetPlayLength() * 0.6f)
 		{
+			PlayAnimMontage(attackAnims[attackMod], 1.f);
+			lastTimeAttackPressed = 0.f;
+			attackMod++;
+			if (attackMod > 2)
+			{
+				attackMod = 0;
+			}
+		}
+		else if (!IsInCombat())
+		{
+			isAttackPressed = true;
 			attackMod = 0;
+			lastTimeAttackPressed = 0.f;
+			PlayAnimMontage(attackAnims[attackMod], 1.f);
 		}
 	}
-	else if(!isAttackPressed)
+}
+
+void ACombatCharacterBase::LockOn()
+{
+	isLockOn = !isLockOn;
+	UE_LOG(LogTemp, Warning, TEXT("VOO : %d"), isLockOn);
+}
+
+void ACombatCharacterBase::BlockOn()
+{
+	if (!IsInCombat() && !IsDead())
 	{
-		isAttackPressed = true;
-		attackMod = 0;
-		lastTimeAttackPressed = 0.f;
-		PlayAnimMontage(attackAnims[attackMod], 1.f);
+		isBlocking = true;
+		PlayAnimMontage(blockAnim, 1.f);
 	}
+}
+
+void ACombatCharacterBase::BlockOff()
+{
+	isBlocking = false;
+	StopAnimMontage(blockAnim);
+}
+
+void ACombatCharacterBase::LockMovement()
+{
+	isVerticallyMoving = false;
+	isHorizontallyMoving = false;
+	vertical = 0.f;
+	horizontal = 0.f;
+}
+
+void ACombatCharacterBase::TEST_Action()
+{
+	//자살로직
+	FDamageEvent events;
+	TakeDamage(100.f, events, GetController(), GetOwner());
 }
 
 float ACombatCharacterBase::GetHorizontalMoving() const
@@ -125,7 +191,25 @@ float ACombatCharacterBase::GetVerticalMoving() const
 	return vertical;
 }
 
-bool ACombatCharacterBase::IsAttacking() const
+bool ACombatCharacterBase::IsInCombat() const
 {
-	return isAttackPressed;
+	return isAttackPressed || isBlocking;
+}
+
+bool ACombatCharacterBase::IsLockOn() const
+{
+	return isLockOn;
+}
+
+bool ACombatCharacterBase::IsDead() const
+{
+	return curHp <= 0.f;
+}
+
+void ACombatCharacterBase::Dead()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Im dying"));
+	curHp = 0.f;
+	PlayAnimMontage(deadAnim,1.f);
+	isDead = true;
 }
