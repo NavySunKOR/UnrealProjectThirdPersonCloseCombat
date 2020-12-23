@@ -48,6 +48,10 @@ private:
 	float maxHp = 100.f;
 	float damage = 15.f;
 	
+	//ÇÇ°Ý
+	UPROPERTY(EditAnywhere)
+	UAnimMontage* hitAnim;
+
 	//»ç¸Á
 	bool isDead = false;
 	UPROPERTY(EditAnywhere)

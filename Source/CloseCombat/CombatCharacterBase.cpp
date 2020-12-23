@@ -76,7 +76,7 @@ float ACombatCharacterBase::TakeDamage(float Damage, FDamageEvent const& DamageE
 	UE_LOG(LogTemp, Warning, TEXT("Damage taken! amount : %f"), Damage);
 	Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
 	curHp -= Damage;
-
+	PlayAnimMontage(hitAnim, 1.f);
 	UE_LOG(LogTemp, Warning, TEXT("Curhp amount : %f"), curHp);
 	if (curHp <= 0.f)
 	{
@@ -178,7 +178,7 @@ void ACombatCharacterBase::TEST_Action()
 {
 	//자살로직
 	FDamageEvent events;
-	TakeDamage(100.f, events, GetController(), GetOwner());
+	TakeDamage(15.f, events, GetController(), GetOwner());
 }
 
 float ACombatCharacterBase::GetHorizontalMoving() const
