@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include <Runtime/Engine/Classes/Components/BoxComponent.h>
 #include "GameFramework/Character.h"
 #include "CombatCharacterBase.generated.h"
 
@@ -32,21 +33,29 @@ private:
 	bool isAttackPressed;
 	float lastTimeAttackPressed = 0.f;
 	UPROPERTY(EditAnywhere)
-		UAnimMontage* attackAnims[3];
+	UAnimMontage* attackAnims[3];
+
 
 
 	//락온
 	bool isLockOn;
+	AActor* lockedOnActor;
 
 	//가드
 	bool isBlocking;
+	bool isParry;
 	UPROPERTY(EditAnywhere)
 	UAnimMontage* blockAnim;
+
+
 
 	//스탯
 	float curHp = 100.f;
 	float maxHp = 100.f;
 	float damage = 15.f;
+	UPROPERTY(EditAnywhere)
+	float movementSpeed = 5.f;
+	float movementMultiplyer = 1.f;
 	
 	//피격
 	UPROPERTY(EditAnywhere)
@@ -56,6 +65,37 @@ private:
 	bool isDead = false;
 	UPROPERTY(EditAnywhere)
 	UAnimMontage* deadAnim;
+
+
+	//사운드 소스와 컴포넌트
+	UPROPERTY(EditAnywhere)
+	USoundBase* movingSoundSource;
+	UPROPERTY(EditAnywhere)
+	USoundBase* attackSoundSource;	
+	UPROPERTY(EditAnywhere)
+	USoundBase* parrySoundSource;
+	UPROPERTY(EditAnywhere)
+	USoundBase* guardSoundSource;
+	UPROPERTY(EditAnywhere)
+	USoundBase* hitSoundSource;
+	UPROPERTY(EditAnywhere)
+	USoundBase* deadSoundSource;
+
+	UAudioComponent* movingSound;
+	UAudioComponent* attackSound;
+	UAudioComponent* parrySound;
+	UAudioComponent* guardSound;
+	UAudioComponent* hitSound;
+	UAudioComponent* deadSound;
+
+	//파티클
+	UPROPERTY(EditAnywhere)
+	UParticleSystem* hitParticle;
+	UPROPERTY(EditAnywhere)
+	UParticleSystem* parryParticle;
+
+	FTimerHandle timeHandler;
+
 
 
 protected:
@@ -74,7 +114,11 @@ protected:
 	//내부적으로 사용하는 코드들
 private:
 	void LockMovement();
+	void CancelAttack();
+	void AttackInternal();
+	void SetParry();
 	void TEST_Action();
+
 
 public:	
 	// Called every frame
@@ -93,6 +137,14 @@ public:
 	bool IsLockOn() const;
 	UFUNCTION(BlueprintPure)
 	bool IsDead() const;
+	UFUNCTION()
+	bool IsBlocking() const;
+	UFUNCTION()
+	bool IsParry() const;
+	UFUNCTION(BlueprintPure)
+	float GetCurrentHealth() const;
+	UFUNCTION(BlueprintPure)
+	float GetHealthPercentage() const;
 
 	void Dead();
 };
