@@ -2,10 +2,12 @@
 
 
 #include "CombatCharacterBase.h"
+#include "CombatPlayerController.h"
 #include <Runtime/Engine/Public/EngineUtils.h>
 #include <Runtime/Engine/Classes/Components/BoxComponent.h>
 #include <Runtime/Engine/Classes/Components/AudioComponent.h>
 #include <Runtime/Engine/Classes/Particles/ParticleSystemComponent.h>
+#include "CloseCombatGameModeBase.h"
 #include <Kismet/GameplayStatics.h>
 #include <typeinfo>
 
@@ -32,6 +34,16 @@ void ACombatCharacterBase::BeginPlay()
 	hitSound->Stop();
 	deadSound = UGameplayStatics::SpawnSoundAtLocation(GetWorld(), deadSoundSource, GetActorLocation());
 	deadSound->Stop();
+
+	ACombatPlayerController* playerCon = Cast<ACombatPlayerController>(GetController());
+	if (playerCon == nullptr)
+	{
+		isPlayer = false;
+	}
+	else
+	{
+		isPlayer = true;
+	}
 }
 
 // Called every frame
@@ -82,14 +94,17 @@ void ACombatCharacterBase::Tick(float DeltaTime)
 	if ((vertical < 0.1f && vertical >-0.1f)
 		&& (horizontal < 0.1f && horizontal >-0.1f))
 	{
-		if (movingSound->IsPlaying())
+		if(movingSound != nullptr && movingSound->IsPlaying())
 			movingSound->Stop();
 	}
 	else
 	{
-		movingSound->SetWorldLocation(GetActorLocation());
-		if (!movingSound->IsPlaying())
-			movingSound->Play();
+		if (movingSound != nullptr )
+		{
+			movingSound->SetWorldLocation(GetActorLocation());
+			if(movingSound != nullptr && !movingSound->IsPlaying())
+				movingSound->Play();
+		}
 	}
 
 	if (isAttackPressed)
@@ -136,8 +151,10 @@ void ACombatCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 	PlayerInputComponent->BindAxis(TEXT("Vertical"), this, &ACombatCharacterBase::MoveVertical);
 	PlayerInputComponent->BindAxis(TEXT("Horizontal"), this, &ACombatCharacterBase::MoveHorizontal);
+	PlayerInputComponent->BindAxis(TEXT("MouseX"), this, &ACombatCharacterBase::RotateHorizontal);
+	PlayerInputComponent->BindAxis(TEXT("MouseY"), this, &ACombatCharacterBase::RotateVertical);
 	PlayerInputComponent->BindAction(TEXT("Attack"), EInputEvent::IE_Pressed, this, &ACombatCharacterBase::Attack);
-	PlayerInputComponent->BindAction(TEXT("LockOn"), EInputEvent::IE_Pressed, this, &ACombatCharacterBase::LockOn);
+	PlayerInputComponent->BindAction<FIsLockOn>(TEXT("LockOn"), EInputEvent::IE_Pressed, this, &ACombatCharacterBase::LockOn,!isLockOn);
 	PlayerInputComponent->BindAction(TEXT("Block"), EInputEvent::IE_Pressed, this, &ACombatCharacterBase::BlockOn);
 	PlayerInputComponent->BindAction(TEXT("Block"), EInputEvent::IE_Released, this, &ACombatCharacterBase::BlockOff);
 	PlayerInputComponent->BindAction(TEXT("TEST_Action"), EInputEvent::IE_Pressed, this, &ACombatCharacterBase::TEST_Action);
@@ -199,9 +216,9 @@ void ACombatCharacterBase::Attack()
 	}
 }
 
-void ACombatCharacterBase::LockOn()
+void ACombatCharacterBase::LockOn(bool pIsLockOn)
 {
-	isLockOn = !isLockOn;
+	isLockOn = pIsLockOn;
 	movementMultiplyer = (isLockOn) ? 0.5f : 1.f;
 	
 	if (isLockOn)
@@ -209,8 +226,6 @@ void ACombatCharacterBase::LockOn()
 		TActorRange<AActor> actorsInWorld = TActorRange<AActor>(GetWorld());
 		for (AActor* act : actorsInWorld)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Name : %s"), *act->GetActorLabel());
-			
 			if (act != this && act->GetActorLabel().Equals(TEXT("BP_CombatCharacterBase")))
 			{
 				//¶ô¿Â
@@ -233,8 +248,15 @@ void ACombatCharacterBase::BlockOn()
 	if (!IsInCombat() && !IsDead())
 	{
 		isBlocking = true;
-		GetWorldTimerManager().SetTimer(timeHandler,this, &ACombatCharacterBase::SetParry, blockAnim->GetPlayLength()*0.1f, false);
-		GetWorldTimerManager().SetTimer(timeHandler, this, &ACombatCharacterBase::SetParry, blockAnim->GetPlayLength()*0.2f, false);
+		GetWorldTimerManager().SetTimer(timeHandler,
+			FTimerDelegate::CreateLambda([&]() {
+				SetParry(true);
+				})
+			, blockAnim->GetPlayLength()*0.1f, false);
+		GetWorldTimerManager().SetTimer(timeHandler, 
+			FTimerDelegate::CreateLambda([&]() {
+			SetParry(false);
+			}), blockAnim->GetPlayLength()*0.2f, false);
 		PlayAnimMontage(blockAnim, 1.f);
 
 		guardSound->SetWorldLocation(GetActorLocation());
@@ -246,6 +268,16 @@ void ACombatCharacterBase::BlockOff()
 {
 	isBlocking = false;
 	StopAnimMontage(blockAnim);
+}
+
+void ACombatCharacterBase::RotateVertical(float pInputValue)
+{
+	AddControllerPitchInput(pInputValue);
+}
+
+void ACombatCharacterBase::RotateHorizontal(float pInputValue)
+{
+	AddControllerYawInput(pInputValue);
 }
 
 
@@ -276,10 +308,8 @@ void ACombatCharacterBase::AttackInternal()
 	GetWorld()->DebugDrawTraceTag = tag;
 	param.TraceTag = tag;
 
-	UE_LOG(LogTemp, Warning, TEXT("Attack!"));
 	if (GetWorld()->LineTraceSingleByChannel(hit, start, end, ECollisionChannel::ECC_Pawn, param))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Hit! : %s"),*hit.GetActor()->GetActorLabel());
 		ACombatCharacterBase* hitActor = Cast<ACombatCharacterBase>(hit.GetActor());
 		if (hitActor != nullptr)
 		{
@@ -302,9 +332,9 @@ void ACombatCharacterBase::AttackInternal()
 	}
 }
 
-void ACombatCharacterBase::SetParry()
+void ACombatCharacterBase::SetParry(bool pIsParry)
 {
-	isParry = !isParry;
+	isParry = pIsParry;
 }
 
 void ACombatCharacterBase::TEST_Action()
@@ -365,6 +395,15 @@ void ACombatCharacterBase::Dead()
 	curHp = 0.f;
 	deadSound->SetWorldLocation(GetActorLocation());
 	deadSound->Play();
+	ACloseCombatGameModeBase* gameMode = GetWorld()->GetAuthGameMode<ACloseCombatGameModeBase>();
+	if (gameMode != nullptr)
+	{
+		gameMode->PawnKilled(isPlayer);
+	}
 	PlayAnimMontage(deadAnim,1.f);
 	isDead = true;
+
+	LockOn(false);
+
+	DetachFromControllerPendingDestroy();
 }

@@ -28,4 +28,6 @@ private:
 	UUserWidget* hud;
 	UUserWidget* winScreen;
 	UUserWidget* loseScreen;
+public:
+	virtual void GameHasEnded(class AActor* EndGameFocus, bool bIsWinner);
 };

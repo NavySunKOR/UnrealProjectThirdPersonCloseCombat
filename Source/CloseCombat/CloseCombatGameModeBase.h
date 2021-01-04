@@ -13,5 +13,7 @@ UCLASS()
 class CLOSECOMBAT_API ACloseCombatGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
+public: 
+	void PawnKilled(bool isPlayer);
 	
 };

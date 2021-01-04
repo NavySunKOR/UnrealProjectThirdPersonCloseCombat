@@ -12,6 +12,8 @@ class CLOSECOMBAT_API ACombatCharacterBase : public ACharacter
 {
 	GENERATED_BODY()
 
+	DECLARE_DELEGATE_OneParam(FIsLockOn, bool);
+
 public:
 	// Sets default values for this character's properties
 	ACombatCharacterBase();
@@ -96,6 +98,10 @@ private:
 
 	FTimerHandle timeHandler;
 
+	//Controller
+	bool isPlayer;
+
+
 
 
 protected:
@@ -104,22 +110,16 @@ protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	//외부로 나갈 수 있는 코드들
-	void MoveVertical(float pInputValue);
-	void MoveHorizontal(float pInputValue);
-	void Attack();
-	void LockOn();
-	void BlockOn();
-	void BlockOff();
+	void RotateVertical(float pInputValue);
+	void RotateHorizontal(float pInputValue);
 
 	//내부적으로 사용하는 코드들
 private:
 	void LockMovement();
 	void CancelAttack();
 	void AttackInternal();
-	void SetParry();
+	void SetParry(bool pIsParry);
 	void TEST_Action();
-
-
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -146,5 +146,11 @@ public:
 	UFUNCTION(BlueprintPure)
 	float GetHealthPercentage() const;
 
+	void LockOn(bool pIsLockOn);
 	void Dead();
+	void Attack();
+	void BlockOn();
+	void BlockOff();
+	void MoveVertical(float pInputValue);
+	void MoveHorizontal(float pInputValue);
 };
