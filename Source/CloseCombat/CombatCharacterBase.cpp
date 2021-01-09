@@ -22,7 +22,7 @@ ACombatCharacterBase::ACombatCharacterBase()
 void ACombatCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
-	movingSound = UGameplayStatics::SpawnSoundAtLocation(GetWorld(), movingSoundSource,GetActorLocation());
+	movingSound = UGameplayStatics::SpawnSoundAtLocation(GetWorld(), movingSoundSource, GetActorLocation());
 	movingSound->Stop();
 	attackSound = UGameplayStatics::SpawnSoundAtLocation(GetWorld(), attackSoundSource, GetActorLocation());
 	attackSound->Stop();
@@ -94,17 +94,12 @@ void ACombatCharacterBase::Tick(float DeltaTime)
 	if ((vertical < 0.1f && vertical >-0.1f)
 		&& (horizontal < 0.1f && horizontal >-0.1f))
 	{
-		if(movingSound != nullptr && movingSound->IsPlaying())
-			movingSound->Stop();
+		movingSound->Stop();
 	}
 	else
 	{
-		if (movingSound != nullptr )
-		{
-			movingSound->SetWorldLocation(GetActorLocation());
-			if(movingSound != nullptr && !movingSound->IsPlaying())
-				movingSound->Play();
-		}
+		if(!movingSound->IsPlaying())
+			movingSound->Play();
 	}
 
 	if (isAttackPressed)
